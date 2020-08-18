@@ -8,8 +8,8 @@
 
 #import "ZLRUCache.h"
 #import <pthread.h>
-#import <UIKit/UIKit.h>
 #import <os/lock.h>
+#import <UIKit/UIKit.h>
 
 
 typedef struct ZDualLinkedNode {
