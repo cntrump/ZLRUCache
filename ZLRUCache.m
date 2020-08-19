@@ -7,9 +7,8 @@
 //
 
 #import "ZLRUCache.h"
-#import <pthread.h>
-#import <os/lock.h>
 #import <UIKit/UIKit.h>
+#import "ZLock.h"
 
 
 typedef struct ZDualLinkedNode {
@@ -19,83 +18,6 @@ typedef struct ZDualLinkedNode {
     struct ZDualLinkedNode *next;
 } ZDualLinkedNode, *ZDualLinkedNodeRef;
 
-@interface ZLock : NSObject {
- @private
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    OS_UNFAIR_LOCK_AVAILABILITY os_unfair_lock _unfairLock;
-#endif
-    pthread_mutex_t _mutexLock;
-}
-
-@end
-
-@implementation ZLock
-
-- (void)dealloc {
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    if (@available(iOS 10.0, *)) {
-
-    } else {
-#endif
-        pthread_mutex_destroy(&_mutexLock);
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    }
-#endif
-}
-
-- (instancetype)init {
-    if (self = [super init]) {
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-        if (@available(iOS 10.0, *)) {
-            _unfairLock = OS_UNFAIR_LOCK_INIT;
-        } else {
-#endif
-            pthread_mutex_init(&_mutexLock, NULL);
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-        }
-#endif
-    }
-
-    return self;
-}
-
-- (BOOL)tryLock {
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    if (@available(iOS 10.0, *)) {
-        return os_unfair_lock_trylock(&_unfairLock);
-    } else {
-#endif
-        return pthread_mutex_trylock(&_mutexLock) == 0;
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    }
-#endif
-}
-
-- (void)lock {
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    if (@available(iOS 10.0, *)) {
-        os_unfair_lock_lock(&_unfairLock);
-    } else {
-#endif
-        pthread_mutex_lock(&_mutexLock);
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    }
-#endif
-}
-
-- (void)unlock {
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    if (@available(iOS 10.0, *)) {
-        os_unfair_lock_unlock(&_unfairLock);
-    } else {
-#endif
-        pthread_mutex_unlock(&_mutexLock);
-#ifdef OS_UNFAIR_LOCK_AVAILABILITY
-    }
-#endif
-}
-
-@end
 
 @interface ZLRUCache () {
  @private
@@ -115,6 +37,7 @@ typedef struct ZDualLinkedNode {
     [NSNotificationCenter.defaultCenter removeObserver:self
                                                   name:UIApplicationDidReceiveMemoryWarningNotification
                                                 object:nil];
+    _lock = nil;
 }
 
 - (instancetype)initWithCapacity:(NSInteger)capacity {
@@ -257,22 +180,23 @@ typedef struct ZDualLinkedNode {
         return;
     }
 
-    [_lock lock];
+    @autoreleasepool {
+        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
+        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
 
-    ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
+        ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
 
-    if (node) {
-        if (obj) {
-            node->data = (__bridge_retained void *)obj;
+        if (node) {
+            if (obj) {
+                node->data = (__bridge_retained void *)obj;
+            } else {
+                [self removeNode:node];
+                [_hashMap removeObjectForKey:key];
+            }
         } else {
-            [self removeNode:node];
-            [_hashMap removeObjectForKey:key];
+            [self addObject:obj forKey:key];
         }
-    } else {
-        [self addObject:obj forKey:key];
     }
-
-    [_lock unlock];
 }
 
 - (id)objectForKey:(NSObject *)key {
@@ -282,15 +206,16 @@ typedef struct ZDualLinkedNode {
 
     id object = nil;
 
-    [_lock lock];
+    @autoreleasepool {
+        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
+        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
 
-    ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
-    if (node) {
-        object = (__bridge id)node->data;
-        [self insertHead:node];
+        ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
+        if (node) {
+            object = (__bridge id)node->data;
+            [self insertHead:node];
+        }
     }
-
-    [_lock unlock];
 
     return object;
 }
@@ -304,15 +229,16 @@ typedef struct ZDualLinkedNode {
 }
 
 - (void)removeAllObjects {
-    [_lock lock];
+    @autoreleasepool {
+        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
+        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
 
-    for (ZDualLinkedNodeRef p = _tail; p != NULL; p = _tail) {
-        [self removeNode:p];
+        for (ZDualLinkedNodeRef p = _tail; p != NULL; p = _tail) {
+            [self removeNode:p];
+        }
+
+        [_hashMap removeAllObjects];
     }
-
-    [_hashMap removeAllObjects];
-
-    [_lock unlock];
 }
 
 #pragma mark - Notifications
