@@ -180,23 +180,24 @@ typedef struct ZDualLinkedNode {
         return;
     }
 
-    @autoreleasepool {
-        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
-        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
+    __unused id selfGuard = self;
+    ZLock *lockGuard = _lock;
+    [lockGuard lock];
 
-        ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
+    ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
 
-        if (node) {
-            if (obj) {
-                node->data = (__bridge_retained void *)obj;
-            } else {
-                [self removeNode:node];
-                [_hashMap removeObjectForKey:key];
-            }
+    if (node) {
+        if (obj) {
+            node->data = (__bridge_retained void *)obj;
         } else {
-            [self addObject:obj forKey:key];
+            [self removeNode:node];
+            [_hashMap removeObjectForKey:key];
         }
+    } else {
+        [self addObject:obj forKey:key];
     }
+
+    [lockGuard unlock];
 }
 
 - (id)objectForKey:(NSObject *)key {
@@ -206,16 +207,17 @@ typedef struct ZDualLinkedNode {
 
     id object = nil;
 
-    @autoreleasepool {
-        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
-        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
+    __unused id selfGuard = self;
+    ZLock *lockGuard = _lock;
+    [lockGuard lock];
 
-        ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
-        if (node) {
-            object = (__bridge id)node->data;
-            [self insertHead:node];
-        }
+    ZDualLinkedNodeRef node = (__bridge ZDualLinkedNodeRef)[_hashMap objectForKey:key];
+    if (node) {
+        object = (__bridge id)node->data;
+        [self insertHead:node];
     }
+
+    [lockGuard unlock];
 
     return object;
 }
@@ -229,16 +231,17 @@ typedef struct ZDualLinkedNode {
 }
 
 - (void)removeAllObjects {
-    @autoreleasepool {
-        __unused ZSelfGuard *selfGuard = [ZSelfGuard guardWithObject:self];
-        __unused ZLockGuard *lockGuard = [ZLockGuard guardWithLock:_lock];
+    __unused id selfGuard = self;
+    ZLock *lockGuard = _lock;
+    [lockGuard lock];
 
-        for (ZDualLinkedNodeRef p = _tail; p != NULL; p = _tail) {
-            [self removeNode:p];
-        }
-
-        [_hashMap removeAllObjects];
+    for (ZDualLinkedNodeRef p = _tail; p != NULL; p = _tail) {
+        [self removeNode:p];
     }
+
+    [_hashMap removeAllObjects];
+
+    [lockGuard unlock];
 }
 
 #pragma mark - Notifications
