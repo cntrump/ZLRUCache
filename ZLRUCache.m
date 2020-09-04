@@ -136,6 +136,7 @@ typedef struct ZDualLinkedNode {
 
     [self detachNode:node];
 
+    CFBridgingRelease(node->data);
     node->data = NULL;
     node->key = nil;
     free(node);
@@ -160,7 +161,10 @@ typedef struct ZDualLinkedNode {
 
     _count += 1;
 
-    _head->prev = node;
+    if (_head) {
+        _head->prev = node;
+    }
+
     node->next = _head;
     _head = node;
 }
@@ -188,6 +192,7 @@ typedef struct ZDualLinkedNode {
 
     if (node) {
         if (obj) {
+            CFBridgingRelease(node->data);
             node->data = (__bridge_retained void *)obj;
         } else {
             [self removeNode:node];
