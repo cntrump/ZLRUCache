@@ -1,0 +1,4 @@
+module ZLRUCache {
+    header "ZLRUCache.h"
+    export *
+}

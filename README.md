@@ -1,2 +1,3 @@
 # ZLRUCache
-a fast thread-safed LRU memory cache.
+
+a thread-safed LRU memory cache.
