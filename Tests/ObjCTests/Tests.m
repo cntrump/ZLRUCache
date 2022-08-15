@@ -32,4 +32,12 @@
     XCTAssertEqual(cache[@"key_1"], @1);
 }
 
+- (void)testNilValue {
+    ZLRUCache<NSString *, NSNumber *> *cache = [[ZLRUCache alloc] initWithCapacity:3];
+    cache[@"key_1"] = @1;
+    XCTAssertEqual(cache[@"key_1"], @1);
+    cache[@"key_1"] = nil;
+    XCTAssertEqual(cache[@"key_1"], nil);
+}
+
 @end

@@ -13,7 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithCapacity:(NSUInteger)numItems NS_DESIGNATED_INITIALIZER;
 
-- (void)setObject:(ObjectType)anObject forKey:(KeyType<NSCopying>)aKey;
+- (void)setObject:(nullable ObjectType)anObject forKey:(KeyType<NSCopying>)aKey;
 
 - (nullable ObjectType)objectForKey:(KeyType)aKey;
 

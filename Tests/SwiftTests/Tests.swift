@@ -27,4 +27,12 @@ class SwiftTests: XCTestCase {
         XCTAssertEqual(cache.object(forKey: "key_2"), nil)
         XCTAssertEqual(cache.object(forKey: "key_1"), 1)
     }
+
+    func testNilValue() {
+        let cache = ZLRUCache<NSString, NSNumber>(capacity: 3)
+        cache.setObject(1, forKey: "key_1" as NSString)
+        XCTAssertEqual(cache.object(forKey: "key_1"), 1)
+        cache.setObject(nil, forKey: "key_1" as NSString)
+        XCTAssertEqual(cache.object(forKey: "key_1"), nil)
+    }
 }
