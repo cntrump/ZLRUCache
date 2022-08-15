@@ -3,16 +3,22 @@
 #import "ZLock.h"
 
 @interface ZLRUCache () {
+  @private
     NSMutableArray<id> *_FIFOQueue;
     NSMutableArray<id> *_LIFOQueue;
     NSMutableDictionary<id<NSCopying>, id> *_table;
     ZLock *_lock;
     NSUInteger _limits;
+    id _memoryWarningObserver;
 }
 
 @end
 
 @implementation ZLRUCache
+
++ (instancetype)cache {
+    return [[self alloc] initWithCapacity:10000];
+}
 
 - (instancetype)initWithCapacity:(NSUInteger)numItems {
     if (self = [super init]) {
@@ -118,5 +124,33 @@
     }
 }
 
+- (void)removeAllObjects {
+    typeof(self) sself = self;
+    [sself->_lock lockWithBlock:^{
+        [_table removeAllObjects];
+        [_FIFOQueue removeAllObjects];
+        [_LIFOQueue removeAllObjects];
+    }];
+}
+
 @end
 
+@implementation ZLRUCache (KeyedSubscript)
+
+- (id)objectForKeyedSubscript:(id)key {
+    if (!key) {
+        return nil;
+    }
+
+    return [self objectForKey:key];
+}
+
+- (void)setObject:(nullable id)obj forKeyedSubscript:(id<NSCopying>)key {
+    if (!key || !obj) {
+        return;
+    }
+
+    [self setObject:obj forKey:key];
+}
+
+@end
